@@ -60,10 +60,11 @@ fdist = FreqDist()
 for word in singles1_s:
     fdist[word.lower()] += 1
 
-fdist = {k:v for k,v in sorted(fdist.items(), key= lambda x:x[1], reverse=True)}
+fdist2 = {k:v for k,v in sorted(fdist.items(), key= lambda x:x[1], reverse=True)}
+del fdist2['doe']
 
-top_30 = list(fdist.items())[:29]
-
+top_30 = list(fdist2.items())[:29]
+print(top_30)
 fig, ax = plt.subplots()
 words = [tup[0] for tup in top_30]
 counts = [tup[1] for tup in top_30]
@@ -74,13 +75,12 @@ plt.xticks(rotation=45, ha="right")
 plt.show()
 
 
-cst_stp = "doe"
+cst_stp = 'doe'
 stopwords.append(cst_stp)
 
-singles1_s = [word for word in singles1_s if word not in stopwords]
 print(len(set(singles1_s)))
-
-wordcloud = WordCloud(stopwords=stopwords, background_color='black', max_words=300).generate_from_frequencies(fdist)
+singles1_s = [word for word in singles1_s if word != 'doe']
+wordcloud = WordCloud(stopwords=stopwords, background_color='black', max_words=300).generate_from_frequencies(fdist2)
 
 plt.figure(figsize=(15,10))
 plt.clf()
