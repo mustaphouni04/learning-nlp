@@ -57,8 +57,8 @@ y_pred = clf.predict(X_test)
 accuracy = accuracy_score(y_test, y_pred)
 report = classification_report(y_test, y_pred)
 
-print(f"Accuracy: {accuracy:.4f}")
-print("\nClassification Report:")
+print(f"accuracy: {accuracy:.4f}")
+print("\nclassification report:")
 print(report)
 
 feature_names = vectorizer.get_feature_names_out()
