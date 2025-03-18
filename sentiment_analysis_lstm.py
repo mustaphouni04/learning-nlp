@@ -26,17 +26,24 @@ WORD = re.compile(r'\w+')
 def regTokenize(text):
     stop_words = set(stopwords.words('english'))
     words = WORD.findall(text)
-    words = [w.lower() for w in words if not w.lower() in stop_words]
+    negation_words = {'not', 'no', 'nor', 'neither', 'never'}
+    words = [w.lower() for w in words if not w.lower() in stop_words or w.lower() in negation_words]
 
     return words
 
 class ReviewDataset(Dataset):
-    def __init__(self, df):
-        self.df = df
-        self.idx2word = dict() 
-        self.word2idx = dict()
-        self.dataset = None
-        self.dataset, self.targets = self.build_dataset()
+    def __init__(self, df, ref_dataset=None):
+        if ref_dataset:
+            self.idx2word = ref_dataset.idx2word
+            self.word2idx = ref_dataset.word2idx
+            self.unk_idx = ref_dataset.unk_idx
+        else:
+            self.df = df
+            self.idx2word = dict() 
+            self.word2idx = dict()
+            self.build_vocab()
+            self.dataset = None
+            self.dataset, self.targets = self.build_dataset()
 
     def build_vocab(self):
         special_tokens = ("<PAD>", "<SOR>", "<EOR>", "<UNK>")
@@ -100,9 +107,8 @@ class ReviewDataset(Dataset):
     def __getitem__(self, idx):
         return self.dataset[idx], self.targets[idx]
 
-review_class = ReviewDataset(df)
 train_review_class = ReviewDataset(train_df)
-test_review_class = ReviewDataset(test_df)
+test_review_class = ReviewDataset(test_df, ref_dataset=train_review_class)
 
 train_loader = DataLoader(train_review_class, batch_size = 32, shuffle=True, num_workers = 4)
 test_loader = DataLoader(test_review_class, batch_size = 32, shuffle=False, num_workers = 4)
@@ -125,8 +131,8 @@ class LSTMSentimentAnalysis(nn.Module):
         h_n = torch.cat((h_n[-2], h_n[-1]),dim=1)
         return self.decode(h_n)
 
-vocab_size = len(review_class.word2idx)
-padding_idx = review_class.word2idx.get("<PAD>")
+vocab_size = len(train_review_class.word2idx)
+padding_idx = train_review_class.word2idx.get("<PAD>")
 print("The padding index is:", padding_idx)
 embedding_dim = 512
 lstm = LSTMSentimentAnalysis(vocab_size,embedding_dim, hidden_dim=128, padding_idx=padding_idx).to("cuda")
