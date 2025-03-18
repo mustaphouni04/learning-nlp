@@ -8,7 +8,7 @@ from tqdm import tqdm
 from utils import clean_sentences
 from torch import nn
 
-MEAN_CONTEXT_LENGTH = 237
+MEAN_CONTEXT_LENGTH = 40
 NUM_EPOCHS = 10 
 
 # Load the Dataset
@@ -135,6 +135,7 @@ for epoch in tqdm(range(NUM_EPOCHS)):
     with torch.no_grad():
         for idx, (input, targ) in enumerate(test_loader):
             input = input.to("cuda")
+            targ = targ.to("cuda")
             out = lstm(input.type(torch.long))
             probs = torch.sigmoid(out)
             preds = (probs > 0.5).float()
