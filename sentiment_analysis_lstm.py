@@ -109,19 +109,20 @@ class LSTMSentimentAnalysis(nn.Module):
 
 vocab_size = len(review_class.word2idx)
 embedding_dim = 128
-lstm = LSTMSentimentAnalysis(vocab_size,embedding_dim, hidden_dim=128)
+lstm = LSTMSentimentAnalysis(vocab_size,embedding_dim, hidden_dim=128).to("cuda")
 loss = torch.nn.BCEWithLogitsLoss()
 optimizer = torch.optim.AdamW(params=lstm.parameters())
 
 for epoch in tqdm(range(NUM_EPOCHS)):
     for _,(input, target) in enumerate(train_loader):
-        input = input.type(torch.long) # (32,237)
+        input = input.type(torch.long).to("cuda") # (32,237)
+        target = target.to("cuda")
         optimizer.zero_grad()
 
         outputs = lstm(input) # (32,1)
 
         output_loss = loss(outputs,target)
-        
+    
         output_loss.backward()
 
         optimizer.step()
@@ -131,6 +132,7 @@ for epoch in tqdm(range(NUM_EPOCHS)):
     
     with torch.no_grad():
         for idx, (input, targ) in enumerate(test_loader):
+            input = input.to("cuda")
             out = lstm(input.type(torch.long))
             for i,j in enumerate(out):
                 if j > 0.5:
