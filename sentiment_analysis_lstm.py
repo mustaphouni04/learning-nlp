@@ -37,7 +37,7 @@ class ReviewDataset(Dataset):
         tokens = {word for review in tqdm(reviews) for word in self.tokenize(review)}
         for token in special_tokens: tokens.add(token)
         self.idx2word = {k:v for k,v in enumerate(tokens)}
-        self.word2idx = {v:k for k,v in enumerate(tokens)}
+        self.word2idx = {v:k for k,v in self.idx2word.items()}
         
     def tokenize(self, review):
         tokens = regTokenize(review)
@@ -90,12 +90,13 @@ train_loader = DataLoader(train_dataset, batch_size = 32, shuffle=True, num_work
 test_loader = DataLoader(test_dataset, batch_size = 32, shuffle=False, num_workers = 4)
 
 class LSTMSentimentAnalysis(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, num_layers=2):
+    def __init__(self, vocab_size, embedding_dim, hidden_dim, padding_idx, num_layers=2):
         super(LSTMSentimentAnalysis, self).__init__()
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
+        
 
-        self.embedding = nn.Embedding(vocab_size, embedding_dim)
+        self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=padding_idx)
         self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers, batch_first=True)
         self.decode = nn.Linear(hidden_dim, 1)
 
@@ -108,8 +109,9 @@ class LSTMSentimentAnalysis(nn.Module):
         return decoded 
 
 vocab_size = len(review_class.word2idx)
+padding_idx = review_class.word2idx.get("<PAD>")
 embedding_dim = 128
-lstm = LSTMSentimentAnalysis(vocab_size,embedding_dim, hidden_dim=128).to("cuda")
+lstm = LSTMSentimentAnalysis(vocab_size,embedding_dim, hidden_dim=128, padding_idx=padding_idx).to("cuda")
 loss = torch.nn.BCEWithLogitsLoss()
 optimizer = torch.optim.AdamW(params=lstm.parameters())
 
@@ -134,15 +136,10 @@ for epoch in tqdm(range(NUM_EPOCHS)):
         for idx, (input, targ) in enumerate(test_loader):
             input = input.to("cuda")
             out = lstm(input.type(torch.long))
-            for i,j in enumerate(out):
-                if j > 0.5:
-                    pred = 1 
-                elif j <= 0.5:
-                    pred = 0
-                gt = targ[i] 
-
-                if pred == gt:
-                    count += 1 
+            probs = torch.sigmoid(out)
+            preds = (probs > 0.5).float()
+            count += (preds == targ).sum().item()
+             
         
         epoch_accuracy = count / total
         print("Accuracy for epoch is: ", epoch_accuracy)
