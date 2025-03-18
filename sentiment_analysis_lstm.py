@@ -108,31 +108,32 @@ train_loader = DataLoader(train_review_class, batch_size = 32, shuffle=True, num
 test_loader = DataLoader(test_review_class, batch_size = 32, shuffle=False, num_workers = 4)
 
 class LSTMSentimentAnalysis(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, padding_idx, num_layers=2):
+    def __init__(self, vocab_size, embedding_dim, hidden_dim, padding_idx, num_layers=2, dropout=0.5):
         super(LSTMSentimentAnalysis, self).__init__()
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
         
 
         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=padding_idx)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers, batch_first=True)
-        self.decode = nn.Linear(hidden_dim, 1)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers, batch_first=True, bidirectional=True, dropout=dropout)
+        self.decode = nn.Linear(hidden_dim*2, 1)
 
     def forward(self, x):
         x = self.embedding(x)
 
-        out, _ = self.lstm(x)
-        decoded = self.decode(out[:,-1,:]) # (32, 1)
-        
-        return decoded 
+        out, (h_n,c_n) = self.lstm(x)
+        h_n = torch.cat((h_n[-2], h_n[-1]),dim=1)
+        return self.decode(h_n)
 
 vocab_size = len(review_class.word2idx)
 padding_idx = review_class.word2idx.get("<PAD>")
+print("The padding index is:", padding_idx)
 embedding_dim = 512
 lstm = LSTMSentimentAnalysis(vocab_size,embedding_dim, hidden_dim=128, padding_idx=padding_idx).to("cuda")
 loss = torch.nn.BCEWithLogitsLoss()
 optimizer = torch.optim.AdamW(params=lstm.parameters())
 
+total_loss = 0
 for epoch in tqdm(range(NUM_EPOCHS)):
     for _,(input, target) in enumerate(train_loader):
         input = input.type(torch.long).to("cuda") # (32,237)
@@ -142,14 +143,20 @@ for epoch in tqdm(range(NUM_EPOCHS)):
         outputs = lstm(input) # (32,1)
 
         output_loss = loss(outputs,target)
+        total_loss += output_loss.item()
     
         output_loss.backward()
+        for name, param in lstm.named_parameters():
+            if param.grad is not None:
+                pass
+                #print(name, "gradient mean: ", param.grad.mean())
+        
 
         optimizer.step()
  
     count = 0 
-    total = test_size
-    
+    total = len(test_review_class) 
+    print("loss is: ", total_loss/len(train_loader)) 
     with torch.no_grad():
         for idx, (input, targ) in enumerate(test_loader):
             input = input.to("cuda")
