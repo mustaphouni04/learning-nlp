@@ -7,19 +7,27 @@ import nltk
 from tqdm import tqdm
 from utils import clean_sentences
 from torch import nn
+from collections import Counter
+from nltk.corpus import stopwords
+nltk.download('stopwords')
 
-MEAN_CONTEXT_LENGTH = 40
+MEAN_CONTEXT_LENGTH = 237
 NUM_EPOCHS = 10 
 
 # Load the Dataset
 df = pd.read_csv("IMDB_Dataset.csv")
+train_df = df.sample(frac=0.8, random_state=42)
+test_df = df.drop(train_df.index)
 print(df.head())
 print(df.columns) # review, sentiment
 
 WORD = re.compile(r'\w+')
 
 def regTokenize(text):
+    stop_words = set(stopwords.words('english'))
     words = WORD.findall(text)
+    words = [w.lower() for w in words if not w.lower() in stop_words]
+
     return words
 
 class ReviewDataset(Dataset):
@@ -32,13 +40,26 @@ class ReviewDataset(Dataset):
 
     def build_vocab(self):
         special_tokens = ("<PAD>", "<SOR>", "<EOR>", "<UNK>")
-        reviews = set(self.df['review'])
+        reviews = self.df['review'].tolist()
         reviews = clean_sentences(reviews)
-        tokens = {word for review in tqdm(reviews) for word in self.tokenize(review)}
-        for token in special_tokens: tokens.add(token)
-        self.idx2word = {k:v for k,v in enumerate(tokens)}
-        self.word2idx = {v:k for k,v in self.idx2word.items()}
-        
+        tokens = []
+        for review in tqdm(reviews):
+            tokens.extend(self.tokenize(review))
+        word_counts = Counter(tokens)
+        sorted_words = sorted(word_counts.items(), key= lambda x:x[1], reverse=True)
+
+        self.idx2word = {i: token for i, token in enumerate(special_tokens)}
+        self.word2idx = {token: i for i, token in enumerate(special_tokens)}
+
+        current_idx = len(special_tokens)
+        for word, count in sorted_words:
+            if word not in special_tokens:
+                self.idx2word[current_idx] = word
+                self.word2idx[word] = current_idx
+                current_idx += 1
+        self.unk_idx = self.word2idx["<UNK>"]
+        print(len(self.word2idx.items()))
+
     def tokenize(self, review):
         tokens = regTokenize(review)
         return tokens
@@ -61,7 +82,7 @@ class ReviewDataset(Dataset):
                 k = MEAN_CONTEXT_LENGTH - len(review)
                 review = review + ["<PAD>"]*k
 
-            indexed_review = [self.word2idx[word] for word in review]
+            indexed_review = [self.word2idx.get(word, self.unk_idx) for word in review]
             starter[idx] = np.array(indexed_review)
         
         dataset = torch.from_numpy(starter).long()
@@ -80,14 +101,11 @@ class ReviewDataset(Dataset):
         return self.dataset[idx], self.targets[idx]
 
 review_class = ReviewDataset(df)
+train_review_class = ReviewDataset(train_df)
+test_review_class = ReviewDataset(test_df)
 
-train_size = int(0.8*len(review_class))
-test_size = len(review_class) - train_size
-
-train_dataset, test_dataset = torch.utils.data.random_split(review_class, [train_size, test_size])
-
-train_loader = DataLoader(train_dataset, batch_size = 32, shuffle=True, num_workers = 4)
-test_loader = DataLoader(test_dataset, batch_size = 32, shuffle=False, num_workers = 4)
+train_loader = DataLoader(train_review_class, batch_size = 32, shuffle=True, num_workers = 4)
+test_loader = DataLoader(test_review_class, batch_size = 32, shuffle=False, num_workers = 4)
 
 class LSTMSentimentAnalysis(nn.Module):
     def __init__(self, vocab_size, embedding_dim, hidden_dim, padding_idx, num_layers=2):
@@ -110,7 +128,7 @@ class LSTMSentimentAnalysis(nn.Module):
 
 vocab_size = len(review_class.word2idx)
 padding_idx = review_class.word2idx.get("<PAD>")
-embedding_dim = 128
+embedding_dim = 512
 lstm = LSTMSentimentAnalysis(vocab_size,embedding_dim, hidden_dim=128, padding_idx=padding_idx).to("cuda")
 loss = torch.nn.BCEWithLogitsLoss()
 optimizer = torch.optim.AdamW(params=lstm.parameters())
