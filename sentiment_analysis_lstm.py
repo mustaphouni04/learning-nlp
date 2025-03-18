@@ -33,18 +33,17 @@ def regTokenize(text):
 
 class ReviewDataset(Dataset):
     def __init__(self, df, ref_dataset=None):
-        if ref_dataset:
+        self.df = df
+        if ref_dataset is not None:
             self.idx2word = ref_dataset.idx2word
             self.word2idx = ref_dataset.word2idx
             self.unk_idx = ref_dataset.unk_idx
         else:
-            self.df = df
             self.idx2word = dict() 
             self.word2idx = dict()
+            self.unk_idx = None
             self.build_vocab()
-            self.dataset = None
-            self.dataset, self.targets = self.build_dataset()
-
+        self.dataset, self.targets = self.build_dataset()
     def build_vocab(self):
         special_tokens = ("<PAD>", "<SOR>", "<EOR>", "<UNK>")
         reviews = self.df['review'].tolist()
@@ -65,7 +64,6 @@ class ReviewDataset(Dataset):
                 self.word2idx[word] = current_idx
                 current_idx += 1
         self.unk_idx = self.word2idx["<UNK>"]
-        print(len(self.word2idx.items()))
 
     def tokenize(self, review):
         tokens = regTokenize(review)
@@ -73,7 +71,6 @@ class ReviewDataset(Dataset):
 
     def build_dataset(self):
 
-        self.build_vocab()
         reviews = list(self.df['review'])
         targets = list(self.df['sentiment'])
         reviews = clean_sentences(reviews)
@@ -93,9 +90,7 @@ class ReviewDataset(Dataset):
             starter[idx] = np.array(indexed_review)
         
         dataset = torch.from_numpy(starter).long()
-        targets = list(map(lambda x: x.replace('negative', '0'), targets))
-        targets = list(map(lambda x: x.replace('positive', '1'), targets))
-        targets = [int(target) for target in targets]
+        targets = [1 if t=="positive" else 0 for t in targets]
         targets = torch.FloatTensor(targets)
         targets = targets.unsqueeze(1) # shape (batch_size,1)
         
@@ -109,12 +104,14 @@ class ReviewDataset(Dataset):
 
 train_review_class = ReviewDataset(train_df)
 test_review_class = ReviewDataset(test_df, ref_dataset=train_review_class)
+print("train_vocab_size:", len(train_review_class.word2idx))
+print("test_vocab_size:", len(test_review_class.word2idx))
 
 train_loader = DataLoader(train_review_class, batch_size = 32, shuffle=True, num_workers = 4)
 test_loader = DataLoader(test_review_class, batch_size = 32, shuffle=False, num_workers = 4)
 
 class LSTMSentimentAnalysis(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, padding_idx, num_layers=2, dropout=0.5):
+    def __init__(self, vocab_size, embedding_dim, hidden_dim, padding_idx, num_layers=2, dropout=0.2):
         super(LSTMSentimentAnalysis, self).__init__()
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
@@ -139,9 +136,9 @@ lstm = LSTMSentimentAnalysis(vocab_size,embedding_dim, hidden_dim=128, padding_i
 loss = torch.nn.BCEWithLogitsLoss()
 optimizer = torch.optim.AdamW(params=lstm.parameters())
 
-total_loss = 0
 for epoch in tqdm(range(NUM_EPOCHS)):
     for _,(input, target) in enumerate(train_loader):
+        total_loss = 0
         input = input.type(torch.long).to("cuda") # (32,237)
         target = target.to("cuda")
         optimizer.zero_grad()
@@ -161,7 +158,7 @@ for epoch in tqdm(range(NUM_EPOCHS)):
         optimizer.step()
  
     count = 0 
-    total = len(test_review_class) 
+    total = len(test_df)
     print("loss is: ", total_loss/len(train_loader)) 
     with torch.no_grad():
         for idx, (input, targ) in enumerate(test_loader):
