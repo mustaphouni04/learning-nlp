@@ -40,7 +40,7 @@ def tokenize(text:str) -> List[str]:
 
 def decode_tokens(tokens:List[int]) -> List[str]:
     decoded = [encoding.decode_single_token_bytes(token) for token in tokens]
-    decoded = [word.decode("utf-8") for word in decoded] 
+    decoded = [word.decode("utf-8", errors="ignore") for word in decoded] 
     return decoded
 
 def build_sequences(df: pd.DataFrame, max_len:int = 75, targ:bool = True) -> torch.Tensor:
@@ -129,7 +129,7 @@ class NeuralMachineTranslation(nn.Module):
                                batch_first=True)
 
         self.fc = nn.Linear(hidden_dim, output_dim)
-
+    
     def forward(self, src, trg):
         batch_size, trg_len = trg.shape
 
@@ -157,6 +157,7 @@ class NeuralMachineTranslation(nn.Module):
         return outputs 
         
 nmt_model = NeuralMachineTranslation()
+nmt_model = nmt_model.to(device)
 print(nmt_model)
 
 optim = torch.optim.Adam(nmt_model.parameters())
@@ -165,34 +166,85 @@ criterion = nn.CrossEntropyLoss(ignore_index=50257)
 num_epochs = 10
 
 def train(model, iterator, optimizer, criterion):
+    scaler = torch.cuda.amp.GradScaler()
     model.train()
     epoch_loss = 0 
     
-    for batch in iterator:
+    for batch in tqdm(iterator):
         source, target = batch
         source, target = source.to(device), target.to(device)
 
         optimizer.zero_grad()
-        predictions = model(source,target)
-        loss = criterion(predictions.view(-1, model.fc.out_features),target.view(-1))
 
-        loss.backward()
-        optimizer.step()
+        with torch.cuda.amp.autocast():
+            predictions = model(source,target)
+            loss = criterion(predictions.view(-1, model.fc.out_features),target.view(-1))
+
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
         epoch_loss += loss.item()
 
     return epoch_loss / len(iterator)
 
+train = False
 
-for epoch in tqdm(range(num_epochs)):
-    print(f"Epoch: {epoch+1}/{num_epochs}")
-    train_loss = train(nmt_model,train_dataloader,optim,criterion)
+if train:
+    for epoch in tqdm(range(num_epochs)):
+        print(f"Epoch: {epoch+1}/{num_epochs}")
+        train_loss = train(nmt_model,train_dataloader,optim,criterion)
 
-    print(f"\tTrain Loss: {train_loss:.3f}")
+        print(f"\tTrain Loss: {train_loss:.3f}")
+        torch.save(nmt_model.state_dict(), 'lstm-machine-translation.pt')
+        print(f"Model saved!")
+
+
+def translate_sentence(model, text):
+    model.eval()
     
+    tokens = tokenize(text)
+    
+    if len(tokens) < 75:
+        length = len(tokens)
+        to_pad = 75 - length
 
+        tokens = tokens + [50257]*to_pad
+    else:
+        tokens = tokens[:75]
 
+    tokens = torch.LongTensor(tokens).unsqueeze(0).to(device) # (1, 75)
 
+    with torch.no_grad():
+        embedded_src = model.dropout(model.embed(tokens))
+        _, (hidden, cell) = model.encoder(embedded_src)
+        
+        outputs = torch.zeros(1,75,50258).to(device)
+        result = []
+        input_token = torch.LongTensor([50256]).to(device)
+        print(input_token.shape)
 
+        for t in range(1, 75):
+            embedded = model.dropout(model.embed(input_token.unsqueeze(1))) # (1, 1, 256)
+            output, (hidden,cell) = model.decoder(embedded, (hidden,cell)) # (1, 1, 256)
+
+            pred_token = model.fc(output.squeeze(1)) # (1, 50258)
+
+            outputs[:,t,:] = pred_token # store predicted token
+
+            input_token = pred_token.argmax(1)
+            result.append(input_token.item())
+    return result
+
+nmt_model.load_state_dict(torch.load('lstm-machine-translation.pt'))
+sentences = ["What is your favorite song?", "Do you know where the nearest restaurant is?", "Go pick up something for me."]
+
+for sentence in sentences:
+    print("Source: ", sentence)
+    translation = translate_sentence(nmt_model, sentence)
+    eos = translation.index(50256)
+
+    translation = decode_tokens(translation[:eos])
+    print("Translation: ", "".join(translation))
 
 
 
