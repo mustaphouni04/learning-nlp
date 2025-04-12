@@ -136,7 +136,7 @@ dataset = load_dataset("universal_dependencies", "en_ewt", trust_remote_code=Tru
 # upos (indices of tags), xpos (actual tag), tokens,
 
 
-def index_analysis(split:str ="train") -> Tuple[Tuple[int,int], Dict[str,int]]: 
+def index_analysis(split:str ="train") -> Tuple[Tuple[int,int], Dict[str,int], Dict[str,int]]: 
     # Get available 
     upos = dataset[split]["upos"]
     xpos = dataset[split]["xpos"]
@@ -150,7 +150,7 @@ def index_analysis(split:str ="train") -> Tuple[Tuple[int,int], Dict[str,int]]:
             vocab.add(word.lower())
     vocab.add("<PAD>")
     vocab.add("<UNK>")
-    for pos in upos:
+    for pos in xpos:
         for tag in pos:
             pos_tags.add(tag)
     
@@ -163,10 +163,53 @@ def index_analysis(split:str ="train") -> Tuple[Tuple[int,int], Dict[str,int]]:
     vocabulary = special_tokens + [word.lower() for word,_ in counter.most_common(len(vocab)+10000)] 
     word2idx = {word:idx for idx, word in enumerate(vocabulary)}    
 
-    return ((len(vocab), len(pos_tags)), word2idx)
+    pos2idx = {pos:idx for indices,pos_tags in zip(dataset[split]["upos"],dataset[split]["xpos"]) for idx,pos in zip(indices, pos_tags)}
 
+    return ((len(vocab), len(pos_tags)), (word2idx, pos2idx))
+
+class PosTagDataset(Dataset):
+    def __init__(self, split:str = "train", max_length: int = 100):
+        self.split = split
+        sequences = dataset[self.split]["tokens"]
+        (vocab_size, pos_tags), (vocab, pos2idx) = index_analysis(split=self.split)
+        sequences = [[vocab[word] for word in sequence] for sequence in sequences]
+        padded_sequences = []
+        for sequence in sequences:
+            padded_sequences.append((sequence + max_length * [vocab["<PAD>"]])[:max_length])
+
+        targets = dataset[self.split]["xpos"]
+        self.sequences = torch.LongTensor(padded_sequences)
+        self.vocab_size = vocab_size
+        self.pos_tags = pos_tags
+        self.vocab = vocab
+        self.pos2idx = pos2idx
+
+        if self.split == "valid":
+            sequences = dataset["valid"]["tokens"]
+            sequences = [[vocab.get(word,1) for word in sequence] for sequence in sequences]
+            for sequence in sequences:
+                padded_sequences.append((sequence + max_length * [vocab["<PAD>"]])[:max_length])
+        
+            self.sequences = torch.LongTensor(padded_sequences)
+            pass
+            
+        else:
+            sequences = dataset["test"]["tokens"]
+            sequences = [[vocab.get(word,1) for word in sequence] for sequence in sequences]
+            for sequence in sequences:
+                padded_sequences.append((sequence + max_length * [vocab["<PAD>"]])[:max_length])
+        
+            self.sequences = torch.LongTensor(padded_sequences) 
+    def __len__(self):
+        return self.sequences.size(0)
+
+    def __getitem__(self, idx):
+        return self.sequences[idx]
+         
+
+        
     
-(vocab_size, pos_tags), vocab = index_analysis(split="train")
+(vocab_size, pos_tags), (vocab, pos2idx) = index_analysis(split="train")
 print(len(vocab.keys()))
 print(vocab_size, pos_tags, vocab["hello"])
 
@@ -174,6 +217,7 @@ print(dataset["train"]["upos"][0:5])
 print(dataset["train"]["xpos"][0:5])
 print(dataset["train"]["tokens"][0:5])
 
+print(pos2idx.items())
 
 
 
