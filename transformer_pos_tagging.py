@@ -2,17 +2,17 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import math
-import random
 from torch.utils.data import DataLoader,Dataset
-import copy
-import nltk
-import numpy as np 
-from sklearn.model_selection import train_test_split
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from datasets import load_dataset
 from typing import List, Tuple, Dict
-from collections import Counter
-import itertools
+
+
+writer = SummaryWriter()
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {device}")
 
 class MultiHeadAttention(nn.Module):
     def __init__(self, d_model: int, num_heads: int):
@@ -33,7 +33,7 @@ class MultiHeadAttention(nn.Module):
         # After rearranging properly we have (B, num_heads, T, dim_k)
         attn_scores = torch.matmul(Q, K.transpose(-2,-1)) / math.sqrt(self.dim_k) # (B, num_heads, T, dim_k) * (B, num_heads, dim_k, T) == (B, num_heads, T, T)
         if mask is not None:
-            attn_scores = attn_scores.masked_fill(mask == 0, -1e9)
+            attn_scores = attn_scores.masked_fill(mask == 0, -float('inf'))
         attn_probs = torch.softmax(attn_scores, dim=-1) # (B, num_heads, T, T)
         output = torch.matmul(attn_probs, V) # (B, num_heads, T, dim_k)
 
@@ -47,12 +47,12 @@ class MultiHeadAttention(nn.Module):
         B, _, T, dim_k = x.size()
         return x.transpose(1,2).contiguous().view(B, T, self.d_model)
 
-    def forward(self, Q, K, V):
+    def forward(self, Q, K, V, mask=None):
         Q = self.split_heads(self.W_q(Q))
         K = self.split_heads(self.W_k(K))
         V = self.split_heads(self.W_v(V))
 
-        attn_output = self.scaled_dot_product_attention(Q, K, V)
+        attn_output = self.scaled_dot_product_attention(Q, K, V, mask)
         output = self.W_o(self.combine_heads(attn_output))
 
         return output
@@ -93,10 +93,12 @@ class EncoderLayer(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x, mask):
-        attn_output = self.self_attn(x,x,x,mask)
-        x = self.norm1(x + self.dropout(attn_output))
-        ff_output = self.feed_forward(x)
-        x = self.norm2(x + self.dropout(ff_output))
+        # Pre-norm
+        attn_output = self.self_attn(self.norm1(x),self.norm1(x),self.norm1(x),mask)
+        x = x + self.dropout(attn_output)
+        # Pre-norm
+        ff_output = self.feed_forward(self.norm2(x))
+        x = x + self.dropout(ff_output)
         return x
 
 class EncoderTransformer(nn.Module):
@@ -105,7 +107,8 @@ class EncoderTransformer(nn.Module):
                  num_layers, d_ff,
                  max_seq_length, dropout):
         super().__init__()
-        self.embedding = nn.Embedding(vocab_size, d_model)
+        self.vocab_size = vocab_size
+        self.embedding = nn.Embedding(vocab_size, d_model, padding_idx = 0)
         self.positional_encoding = PositionalEncoding(d_model, max_seq_length)
 
         self.encoder_layers = nn.ModuleList([EncoderLayer(d_model,num_heads,d_ff,dropout) for _ in range(num_layers)])
@@ -118,7 +121,8 @@ class EncoderTransformer(nn.Module):
         mask = (enc_input != pad_token_id).unsqueeze(1).unsqueeze(2)
         return mask
     
-    def forward(self, x, pad_token_id):
+    def forward(self, x, pad_token_id = 0):
+        assert torch.all(x >= 0) and torch.all(x < self.vocab_size), "Invalid input token IDs!"
         pad_mask = self.generate_mask(x,pad_token_id)
         embedded = self.dropout(self.positional_encoding(self.embedding(x)))
 
@@ -133,94 +137,174 @@ class EncoderTransformer(nn.Module):
 
 
 dataset = load_dataset("universal_dependencies", "en_ewt", trust_remote_code=True)
-# upos (indices of tags), xpos (actual tag), tokens,
+# xpos (actual tag), tokens,
 
 
 def index_analysis(split:str ="train") -> Tuple[Tuple[int,int], Dict[str,int], Dict[str,int]]: 
     # Get available 
-    upos = dataset[split]["upos"]
     xpos = dataset[split]["xpos"]
     sentences = dataset[split]["tokens"]
 
-    vocab = set()
-    pos_tags = set()
+    unique_words = { word.lower() for sentence in sentences for word in sentence if word is not None }
+    specials = ["<PAD>", "<UNK>"]
+    unique_words -= set(specials)
+    sorted_rest = sorted(unique_words)
+    vocabulary = specials + sorted_rest
 
-    for sentence in sentences:
-        for word in sentence:
-            vocab.add(word.lower())
-    vocab.add("<PAD>")
-    vocab.add("<UNK>")
-    for pos in xpos:
-        for tag in pos:
-            pos_tags.add(tag)
-    
-    # Build the vocabulary (use the whole entire thing)
-    all_words = list(itertools.chain.from_iterable(sentences))
-    counter = Counter(all_words)
-    special_tokens = ["<PAD>", "<UNK>"]
+    word2idx = {word:idx for idx, word in enumerate(vocabulary)}
+    print(word2idx["<UNK>"])
+    print(word2idx["<PAD>"])
+    pos_tags = set(tag for pos in xpos for tag in pos if tag is not None)
+    pos_tags = sorted(list(pos_tags))
+    pos2idx = {tag:idx for idx, tag in enumerate(pos_tags)}
+    print(pos2idx["XX"])
 
-    # keep order based on count
-    vocabulary = special_tokens + [word.lower() for word,_ in counter.most_common(len(vocab)+10000)] 
-    word2idx = {word:idx for idx, word in enumerate(vocabulary)}    
+    print("Vocabulary size:", len(word2idx))
+    print("Unique POS tags:", len(pos2idx))
 
-    pos2idx = {pos:idx for indices,pos_tags in zip(dataset[split]["upos"],dataset[split]["xpos"]) for idx,pos in zip(indices, pos_tags)}
+    return ((len(word2idx), len(pos2idx)), (word2idx, pos2idx))
 
-    return ((len(vocab), len(pos_tags)), (word2idx, pos2idx))
+(vocab_size, pos_tags), (vocab, pos2idx) = index_analysis(split="train")
+
 
 class PosTagDataset(Dataset):
-    def __init__(self, split:str = "train", max_length: int = 100):
+    def __init__(self, split:str = "train", max_length: int = 50):
         self.split = split
-        sequences = dataset[self.split]["tokens"]
-        (vocab_size, pos_tags), (vocab, pos2idx) = index_analysis(split=self.split)
-        sequences = [[vocab[word] for word in sequence] for sequence in sequences]
-        padded_sequences = []
-        for sequence in sequences:
-            padded_sequences.append((sequence + max_length * [vocab["<PAD>"]])[:max_length])
+        (vocab_size, pos_tags), (vocab, pos2idx) = index_analysis(split="train")
+        
+        sequences = dataset[split]["tokens"]
+        targets = dataset[split]["xpos"]
 
-        targets = dataset[self.split]["xpos"]
+        padded_sequences = self._process_sequences(sequences, vocab, max_length)
+        padded_targets = self._process_targets(targets,pos2idx,max_length)
+
         self.sequences = torch.LongTensor(padded_sequences)
+        self.targets = torch.LongTensor(padded_targets)
         self.vocab_size = vocab_size
         self.pos_tags = pos_tags
         self.vocab = vocab
         self.pos2idx = pos2idx
 
-        if self.split == "valid":
-            sequences = dataset["valid"]["tokens"]
-            sequences = [[vocab.get(word,1) for word in sequence] for sequence in sequences]
-            for sequence in sequences:
-                padded_sequences.append((sequence + max_length * [vocab["<PAD>"]])[:max_length])
-        
-            self.sequences = torch.LongTensor(padded_sequences)
-            pass
-            
-        else:
-            sequences = dataset["test"]["tokens"]
-            sequences = [[vocab.get(word,1) for word in sequence] for sequence in sequences]
-            for sequence in sequences:
-                padded_sequences.append((sequence + max_length * [vocab["<PAD>"]])[:max_length])
-        
-            self.sequences = torch.LongTensor(padded_sequences) 
+    def _process_sequences(self, sequences, vocab, max_length):
+        padded_sequences = []
+        for seq in sequences:
+            idx_seq = [vocab.get(word.lower(),vocab["<UNK>"]) for word in seq]
+            padded = (idx_seq + [vocab["<PAD>"]] * max_length)[:max_length]
+            padded_sequences.append(padded)
+        return padded_sequences
+
+    def _process_targets(self, targets, pos2idx, max_length, pad_value = -100):
+        padded_targets = []
+        for tgt in targets:
+            idx_tgt = [pos2idx.get(tag,pos2idx["XX"]) for tag in tgt]
+            padded = (idx_tgt + [pad_value] * max_length)[:max_length]
+            padded_targets.append(padded)
+        return padded_targets
+
     def __len__(self):
-        return self.sequences.size(0)
+        return len(self.sequences)
 
     def __getitem__(self, idx):
-        return self.sequences[idx]
-         
+        return self.sequences[idx], self.targets[idx]
 
-        
-    
-(vocab_size, pos_tags), (vocab, pos2idx) = index_analysis(split="train")
-print(len(vocab.keys()))
-print(vocab_size, pos_tags, vocab["hello"])
+train_dataset = PosTagDataset()
+test_dataset = PosTagDataset(split="test")
+valid_dataset = PosTagDataset(split="validation")
 
-print(dataset["train"]["upos"][0:5])
+print(len(train_dataset.pos2idx.keys()))
+print(len(train_dataset))
+print("vocab size is", train_dataset.vocab_size)
+print(train_dataset[0])
+print(len(test_dataset))
+print(test_dataset[0])
+
 print(dataset["train"]["xpos"][0:5])
 print(dataset["train"]["tokens"][0:5])
 
-print(pos2idx.items())
+batch_size = 8
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+valid_loader = DataLoader(valid_dataset, batch_size=batch_size)
+test_loader = DataLoader(test_dataset, batch_size=batch_size)
 
+encoder = EncoderTransformer(train_dataset.vocab_size, 
+                             train_dataset.pos_tags,
+                             d_model = 256,
+                             num_heads = 4,
+                             num_layers = 3,
+                             d_ff = 512,
+                             max_seq_length=50,
+                             dropout=0.5).to(device)
 
+print(encoder.parameters)
+print(dataset)
 
+loss = nn.CrossEntropyLoss(ignore_index=-100)
+optimizer = optim.AdamW(encoder.parameters())
+
+def train(model, iterator, valid_iterator, criterion, optimizer):
+    model.train()
+
+    padding_val = -100
+    for idx, batch in enumerate(tqdm(iterator)):
+        sequence, targets = batch
+        sequence, targets = sequence.to(device), targets.to(device)
+        assert sequence.max().item() < model.vocab_size, "Token ID exceeds vocabulary size!"
+        optimizer.zero_grad()
+        predictions = model(sequence)  # (B, T, pos_tags)
+        
+        num_pos_tags = train_dataset.pos_tags  
+        flat_preds = predictions.view(-1, num_pos_tags)
+        flat_targets = targets.view(-1)
+        
+        loss = criterion(flat_preds, flat_targets)
+        
+        mask = flat_targets != padding_val
+        
+        predicted_classes = flat_preds.argmax(dim=-1)
+        correct = (predicted_classes[mask] == flat_targets[mask]).float()
+        acc = correct.sum() / len(correct)
+
+        writer.add_scalar("Loss/train", loss.item(), idx)
+        writer.add_scalar("Acc/train", acc.item(), idx)
+        loss.backward() 
+        optimizer.step()
+    
+    epoch_loss = 0 
+    epoch_acc = 0
+    model.eval()
+    with torch.no_grad():
+        for idx, batch in enumerate(tqdm(valid_iterator)):
+            sequence, targets = batch
+            sequence, targets = sequence.to(device), targets.to(device)
+            predictions = model(sequence)  # (B, T, pos_tags)
+            
+            flat_preds = predictions.view(-1, num_pos_tags)
+            flat_targets = targets.view(-1)
+            loss = criterion(flat_preds, flat_targets)
+
+            mask = flat_targets != padding_val
+
+            predicted_classes = flat_preds.argmax(dim=-1)
+            correct = (predicted_classes[mask] == flat_targets[mask]).float()
+            acc = correct.sum() / len(correct)
+            
+            epoch_acc += acc.item()
+            epoch_loss += loss.item()
+
+    writer.add_scalar("Loss/valid", epoch_loss / len(valid_iterator))
+    writer.add_scalar("Acc/valid", epoch_acc / len(valid_iterator))
+
+num_epochs = 5
+
+for epoch in tqdm(range(num_epochs)):
+    train(encoder, train_loader, valid_loader, loss, optimizer) 
+    torch.save(encoder.state_dict(), f"model_checkpoint/epoch_{epoch}.pt")
+
+writer.flush()
+writer.close()
+
+                
+        
 
     
 
