@@ -164,7 +164,7 @@ def index_analysis(split:str ="train") -> Tuple[Tuple[int,int], Dict[str,int], D
 
     return ((len(word2idx), len(pos2idx)), (word2idx, pos2idx))
 
-(vocab_size, pos_tags), (vocab, pos2idx) = index_analysis(split="train")
+#(vocab_size, pos_tags), (vocab, pos2idx) = index_analysis(split="train")
 
 
 class PosTagDataset(Dataset):
@@ -295,15 +295,46 @@ def train(model, iterator, valid_iterator, criterion, optimizer):
     writer.add_scalar("Acc/valid", epoch_acc / len(valid_iterator))
 
 num_epochs = 5
+train = False
 
-for epoch in tqdm(range(num_epochs)):
-    train(encoder, train_loader, valid_loader, loss, optimizer) 
-    torch.save(encoder.state_dict(), f"model_checkpoint/epoch_{epoch}.pt")
+if train:
+    for epoch in tqdm(range(num_epochs)):
+        train(encoder, train_loader, valid_loader, loss, optimizer) 
+        torch.save(encoder.state_dict(), f"model_checkpoint/epoch_{epoch}.pt")
 
-writer.flush()
-writer.close()
+    writer.flush()
+    writer.close()
 
-                
+encoder.load_state_dict(torch.load("model_checkpoint/epoch_4.pt"))
+
+idx2pos = {v:k for k,v in train_dataset.pos2idx.items()}
+
+def inference(model, sentence: str):
+    tokens = sentence.split(" ")
+    tokens = [word.lower() for word in tokens]
+    indices = [train_dataset.vocab.get(word,1) for word in tokens]
+    padded = (indices + [train_dataset.vocab["<PAD>"]] * 50)[:50]
+    indices = torch.LongTensor(padded).unsqueeze(0).to(device) # (1, R)
+    # add pad 
+
+    predicted = model(indices) # (1, T, pos_tags)
+
+    flat_preds = predicted.view(-1, train_dataset.pos_tags)
+
+    predicted_classes = flat_preds.argmax(dim=-1)[:len(tokens)]
+    
+    return predicted_classes
+
+sentences = ["She quickly opened the old wooden door", "They had been waiting for hours in the cold", "That that is is that that is not is not is that it it is"]
+
+for sentence in sentences:
+    classes = inference(encoder, sentence)
+    actual_classes = [idx2pos[idx.item()] for idx in classes]
+    print(sentence)
+    print(actual_classes)
+
+    
+
         
 
     
