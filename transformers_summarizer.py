@@ -286,7 +286,7 @@ class CNN_Dataset(Dataset):
     def __getitem__(self, idx):
         return self.article_sequences[idx], self.target_sequences[idx]
 
-batch_size = 10
+batch_size = 32
 vocab_size = 50258
 d_model = 512 
 num_heads_kv = 4
@@ -296,7 +296,7 @@ d_ff = 2048
 max_seq_length_enc = 512
 max_seq_length_dec = 128
 dropout = 0.1
-n_epochs = 5
+n_epochs = 10
 
 train_dataset = CNN_Dataset(train_df)
 valid_dataset = CNN_Dataset(valid_df)
@@ -318,34 +318,49 @@ summarizer = TextSummarizer(vocab_size, d_model,
                             max_seq_length_dec,
                             dropout).to(device)
 
-loss = nn.CrossEntropyLoss(ignore_index=50257)
-optimizer = optim.AdamW(summarizer.parameters(), lr=1e-3)
+checkpoint = torch.load("model_checkpoint/epoch_summarizer_14.pt")
+summarizer.load_state_dict(checkpoint["model_state_dict"]) # load from epoch 14
 
+optimizer = optim.AdamW(summarizer.parameters(), lr=3e-4)
+optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
+loss = nn.CrossEntropyLoss(ignore_index=50257, label_smoothing=0.05)
+accum_steps = 2
+steps_per_epoch = math.ceil(len(train_loader) / accum_steps)
+#total_steps = (steps_per_epoch * n_epochs)
+
+"""
 scheduler = torch.optim.lr_scheduler.OneCycleLR(
     optimizer,
     max_lr=2e-3,
-    steps_per_epoch=len(train_loader),
+    pct_start=0.2,
+    steps_per_epoch=steps_per_epoch,
     epochs=n_epochs,
-    anneal_strategy='linear'
+    anneal_strategy='cos',
+    final_div_factor=1e2
 )
-
+"""
+#scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
 
 def train(model, iterator, criterion, optimizer):
     model.train()
     epoch_loss = 0
     epoch_acc = 0
     padding_val = 50257
+    optimizer.zero_grad()
+
     for idx, batch in enumerate(tqdm(iterator)):
         article, targets = batch # (B, max_seq_length_enc) & (B, max_seq_length_dec)
         article, targets = article.to(device), targets.to(device)
         # assert article.max().item() < model.vocab_size, "Token ID exceeds vocabulary size!"
-        optimizer.zero_grad()
+        # optimizer.zero_grad()
         predictions = model(article, targets[:, :-1], pad_token_id=padding_val)  # (B, max_seq_length_dec, vocab_size)
         
         flat_preds = predictions.view(-1, vocab_size)
         flat_targets = targets[:, 1:].reshape(-1)
         
         loss = criterion(flat_preds, flat_targets)
+        loss = loss / accum_steps
         
         mask = flat_targets != padding_val
         
@@ -358,8 +373,12 @@ def train(model, iterator, criterion, optimizer):
         epoch_loss += loss.item()
         epoch_acc += war.item()
         loss.backward() 
-        optimizer.step()
-        scheduler.step()
+
+        if (idx + 1) % accum_steps == 0:
+            torch.nn.utils.clip_grad_norm_(model.parameters(),max_norm=1.0)
+            optimizer.step()
+            optimizer.zero_grad()
+            #scheduler.step()
 
     writer.add_scalar("EpochLoss/Train", epoch_loss / len(iterator))
     writer.add_scalar("EpochWAR/Train", epoch_acc / len(iterator))
@@ -370,23 +389,16 @@ def inference(model, iterator, criterion):
     padding_val = 50257
     epoch_loss = 0
     epoch_acc = 0
-    
+
     with torch.no_grad():
         for idx, batch in enumerate(tqdm(iterator)):
             article, targets = batch # (B, max_seq_length_enc) & (B, max_seq_length_dec)
             article, targets = article.to(device), targets.to(device)
-            outputs = torch.zeros(batch_size, max_seq_length_dec, vocab_size)
-            generated = targets[:,0].unsqueeze(1) # (1,T)
+            predictions = model(article, targets[:, :-1], pad_token_id=padding_val)
 
-            for t in range(1, max_seq_length_dec):
-                pred_logits = model(article, generated, pad_token_id=padding_val)
-                next_token = pred_logits[:,-1,:].argmax(dim=-1, keepdim=True)
-                generated = torch.cat((generated, next_token), dim=1)
-                outputs[:,t,:] = pred_logits[:,-1,:] 
-         
-            flat_preds = outputs.view(-1, vocab_size)
-            flat_targets = targets[:, 1:].view(-1)
-        
+            flat_preds = predictions.view(-1,vocab_size)
+            flat_targets = targets[:,1:].reshape(-1)
+
             loss = criterion(flat_preds, flat_targets)
         
             mask = flat_targets != padding_val
@@ -406,7 +418,12 @@ def inference(model, iterator, criterion):
 
 for epoch in tqdm(range(n_epochs)):
     train(summarizer, train_loader, loss, optimizer) 
-    torch.save(summarizer.state_dict(), f"model_checkpoint/epoch_summarizer_{epoch}.pt")
+    torch.save({'epoch': epoch+15,
+            'model_state_dict': summarizer.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            }, f"model_checkpoint/epoch_summarizer_{epoch+15}.pt")
+
+    inference(summarizer, valid_loader, loss)
 
 writer.flush()
 writer.close()
