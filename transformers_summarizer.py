@@ -1,3 +1,4 @@
+from os import wait
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -10,6 +11,8 @@ from einops import einsum, rearrange
 import pandas as pd
 import logging
 import tiktoken
+import random
+import torch.nn.functional as F
 
 writer = SummaryWriter()
 
@@ -297,20 +300,9 @@ max_seq_length_enc = 512
 max_seq_length_dec = 128
 dropout = 0.1
 n_epochs = 10
+process = False
 
-train_dataset = CNN_Dataset(train_df)
-valid_dataset = CNN_Dataset(valid_df)
 
-train_loader = DataLoader(train_dataset, batch_size = batch_size, shuffle=True)
-valid_loader = DataLoader(valid_dataset, batch_size = batch_size)
-
-"""
-vocab_size, d_model, 
-                 num_heads_kv, num_heads_q, 
-                 num_layers, d_ff,
-                 max_seq_length_enc,
-                 max_seq_length_dec, dropout
-    """
 summarizer = TextSummarizer(vocab_size, d_model,
                             num_heads_kv, num_heads_q,
                             num_layers, d_ff,
@@ -318,15 +310,31 @@ summarizer = TextSummarizer(vocab_size, d_model,
                             max_seq_length_dec,
                             dropout).to(device)
 
-checkpoint = torch.load("model_checkpoint/epoch_summarizer_14.pt")
-summarizer.load_state_dict(checkpoint["model_state_dict"]) # load from epoch 14
+checkpoint = torch.load("model_checkpoint/epoch_summarizer_24.pt")
+summarizer.load_state_dict(checkpoint["model_state_dict"]) # load from epoch 25
 
-optimizer = optim.AdamW(summarizer.parameters(), lr=3e-4)
-optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+if process:
+    train_dataset = CNN_Dataset(train_df)
+    valid_dataset = CNN_Dataset(valid_df)
 
-loss = nn.CrossEntropyLoss(ignore_index=50257, label_smoothing=0.05)
-accum_steps = 2
-steps_per_epoch = math.ceil(len(train_loader) / accum_steps)
+    train_loader = DataLoader(train_dataset, batch_size = batch_size, shuffle=True)
+    valid_loader = DataLoader(valid_dataset, batch_size = batch_size)
+
+    """
+vocab_size, d_model, 
+                 num_heads_kv, num_heads_q, 
+                 num_layers, d_ff,
+                 max_seq_length_enc,
+                 max_seq_length_dec, dropout
+    """
+
+
+    optimizer = optim.AdamW(summarizer.parameters(), lr=3e-4)
+    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
+    loss = nn.CrossEntropyLoss(ignore_index=50257, label_smoothing=0.05)
+    accum_steps = 2
+    steps_per_epoch = math.ceil(len(train_loader) / accum_steps)
 #total_steps = (steps_per_epoch * n_epochs)
 
 """
@@ -415,19 +423,78 @@ def inference(model, iterator, criterion):
     writer.add_scalar("EpochLoss/Valid", epoch_loss / len(iterator))
     writer.add_scalar("EpochWAR/Valid", epoch_acc / len(iterator))
 
+train = False
 
-for epoch in tqdm(range(n_epochs)):
-    train(summarizer, train_loader, loss, optimizer) 
-    torch.save({'epoch': epoch+15,
+if train:
+    for epoch in tqdm(range(n_epochs)):
+        train(summarizer, train_loader, loss, optimizer) 
+        torch.save({'epoch': epoch+15,
             'model_state_dict': summarizer.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
             }, f"model_checkpoint/epoch_summarizer_{epoch+15}.pt")
 
-    inference(summarizer, valid_loader, loss)
+        inference(summarizer, valid_loader, loss)
 
-writer.flush()
-writer.close()
+    writer.flush()
+    writer.close()
 
+# lil skeleton for inference
+
+def generation_inference(model, sentences, top_p, top_k, temp):
+    model.eval()
+    padding_val = 50257 
+    
+    lengths = [len(tokenize(sentence)) for sentence in sentences]
+    tokenized = [(tokenize(sentence)+[padding_val]*max_seq_length_enc)[:max_seq_length_enc] for sentence in sentences]
+    tokenized = torch.LongTensor(tokenized).unsqueeze(0).to(device)
+    count = 0 
+
+    with torch.no_grad():
+        for idx, sentence in enumerate(tokenized):
+            generated = torch.LongTensor(tokenize("<|endoftext|>")).unsqueeze(0).to(device)
+            
+            for _ in range(1, max_seq_length_dec):
+                pred_logits = model(sentence, generated, pad_token_id = padding_val)
+                pred_logits = pred_logits[:,-1,:] / temp
+
+                if top_k > 0:
+                    topk_vals, topk_idx = torch.topk(pred_logits, top_k)
+                    logits_filtered = torch.full_like(pred_logits, float('-inf'))
+                    logits_filtered.scatter_(1, topk_idx, topk_vals)
+                else:
+                    logits_filtered = pred_logits
+
+                sorted_logits, sorted_indices = torch.sort(logits_filtered, descending=True) # from big to small
+                cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
+
+                sorted_indices_to_remove = cumulative_probs > top_p
+                sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+                sorted_indices_to_remove[..., 0] = 0
+
+                indices_to_remove = sorted_indices_to_remove.scatter(1, sorted_indices, sorted_indices_to_remove)
+                logits_filtered[indices_to_remove] = float('-inf')
+
+                probs = F.softmax(logits_filtered, dim=-1)
+                next_token = torch.multinomial(probs, num_samples=1)
+                count +=1
+
+                generated = torch.cat((generated, next_token), dim=1)
+
+                if next_token == 50256 and count > 1:
+                    break
+
+            return generated.squeeze()
+
+generated = generation_inference(summarizer, ["""Fatou, the world’s oldest gorilla, has just celebrated her 68th birthday at the Berlin Zoo. She is a Western Lowland Gorilla, a species native to parts of Central Africa and classified as critically endangered due to habitat loss.
+
+Fatou arrived at the zoo when she was about two years old and has lived there for 66 years. In the wild, gorillas usually live only 30 to 40 years, so her age is remarkable. Despite her age, Fatou is doing well. She has stiff joints and can’t fully straighten her arms or legs due to arthrosis, a common condition in elderly gorillas, but she’s still in good spirits. Her movements are slower and a bit hunched, but she doesn’t need much medical care.
+
+Zoo veterinarians help her by adjusting her diet since she no longer has teeth. She eats cooked vegetables and gets fruit as a treat. Fatou is watched closely by the staff to make sure she stays healthy. She may be older, but she’s still strong and beloved at the zoo."""], top_p=0.8, top_k=20, temp = 0.7)
+
+generated = generated.tolist()
+result = " ".join(decode_tokens(generated)[1:-1])
+
+print(result)
 
 
 
