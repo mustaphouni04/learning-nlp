@@ -1,6 +1,6 @@
 # EXAM
 # Import necessary libraries
-import pandas as pd 
+import pandas as pd
 from nltk import word_tokenize
 from nltk.corpus import stopwords
 from nltk.probability import FreqDist
