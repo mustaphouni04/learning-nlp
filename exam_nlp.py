@@ -13,6 +13,8 @@ from sklearn.linear_model import LogisticRegression
 import spacy
 from tqdm import tqdm
 import numpy as np
+import numba
+from numba import jit
 
 # Load dataset
 df = pd.read_excel("ExercisesTest_filtered.xlsx")
@@ -27,6 +29,7 @@ print(df["category"].values[0:10])
 print(df["category"].unique())
 
 # Compute the lexical diversity of the dataset
+@jit(nopython=True)
 def return_lexical_diversity(df: pd.DataFrame) -> Tuple[float, List[str]]:
     summaries = df["summary"].values
     sentences = [word_tokenize(str(text)) for text in summaries]
@@ -46,6 +49,7 @@ stopwords = stopwords.words('english')
 #print(stopwords)
 
 # Function used to plot frequency distribution and word cloud of clean words
+@jit(nopython=True)
 def word_analysis(all_words, stopwords: List[str]):
     # Preprocess words prior to calculating frequency distribution and word cloud
     specials = [".", ",", "...", "!", "-", "n't", "n's", "'s"]
@@ -105,6 +109,7 @@ train_df, test_df = train_test_split(df, test_size=0.2, shuffle=True, random_sta
 """
 Preprocess the text, we use SnowballStemmer and stopwords to clean all the junk from the dataset.
 """
+@jit(nopython=True)
 def preprocess_text(df: pd.DataFrame) -> List[str]:
     # Get summaries and categories
     summaries = df["summary"].values
@@ -156,6 +161,7 @@ y_test = np.array(test_categories)
 clf = LogisticRegression(random_state=0).fit(X_train_arr, y_train)
 
 # Used to evaluate the accuracy of classification
+@jit(nopython=True)
 def evaluate(clf, test_array, target):
     score = 0
     total = test_array.shape[0]
