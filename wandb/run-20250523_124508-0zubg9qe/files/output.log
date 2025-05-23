@@ -1,0 +1,29 @@
+  0%|          | 0/118 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "/export/hhome/ainlp22/learning-nlp/asho_project.py", line 39, in <module>
+    for batch in tqdm(train_loader):
+                 ^^^^^^^^^^^^^^^^^^
+  File "/hhome/ainlp22/miniconda3/lib/python3.12/site-packages/tqdm/std.py", line 1181, in __iter__
+    for obj in iterable:
+  File "/hhome/ainlp22/miniconda3/lib/python3.12/site-packages/torch/utils/data/dataloader.py", line 708, in __next__
+    data = self._next_data()
+           ^^^^^^^^^^^^^^^^^
+  File "/hhome/ainlp22/miniconda3/lib/python3.12/site-packages/torch/utils/data/dataloader.py", line 764, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/hhome/ainlp22/miniconda3/lib/python3.12/site-packages/torch/utils/data/_utils/fetch.py", line 55, in fetch
+    return self.collate_fn(data)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/hhome/ainlp22/miniconda3/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 398, in default_collate
+    return collate(batch, collate_fn_map=default_collate_fn_map)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/hhome/ainlp22/miniconda3/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 172, in collate
+    key: collate(
+         ^^^^^^^^
+  File "/hhome/ainlp22/miniconda3/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 155, in collate
+    return collate_fn_map[elem_type](batch, collate_fn_map=collate_fn_map)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/hhome/ainlp22/miniconda3/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 272, in collate_tensor_fn
+    return torch.stack(batch, 0, out=out)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: stack expects each tensor to be equal size, but got [512] at entry 0 and [423] at entry 1

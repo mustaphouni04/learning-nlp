@@ -1,0 +1,3 @@
+  0%|          | 0/30 [00:00<?, ?it/s][rank0]:W0523 17:19:29.753000 2306868 /export/hhome/ainlp22/miniconda3/lib/python3.12/site-packages/torch/_logging/_internal.py:1089] [0/0] Profiler function <class 'torch.autograd.profiler.record_function'> will be ignored
+No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+Passing a tuple of `past_key_values` is deprecated and will be removed in Transformers v4.48.0. You should pass an instance of `EncoderDecoderCache` instead, e.g. `past_key_values=EncoderDecoderCache.from_legacy_cache(past_key_values)`.

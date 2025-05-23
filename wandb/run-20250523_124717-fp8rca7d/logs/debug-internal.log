@@ -1,0 +1,7 @@
+{"time":"2025-05-23T12:47:17.764039402+02:00","level":"INFO","msg":"stream: starting","core version":"0.19.11","symlink path":"/export/hhome/ainlp22/learning-nlp/wandb/run-20250523_124717-fp8rca7d/logs/debug-core.log"}
+{"time":"2025-05-23T12:47:18.038400797+02:00","level":"INFO","msg":"created new stream","id":"fp8rca7d"}
+{"time":"2025-05-23T12:47:18.038449883+02:00","level":"INFO","msg":"stream: started","id":"fp8rca7d"}
+{"time":"2025-05-23T12:47:18.03849335+02:00","level":"INFO","msg":"sender: started","stream_id":"fp8rca7d"}
+{"time":"2025-05-23T12:47:18.038479121+02:00","level":"INFO","msg":"handler: started","stream_id":"fp8rca7d"}
+{"time":"2025-05-23T12:47:18.03849364+02:00","level":"INFO","msg":"writer: Do: started","stream_id":"fp8rca7d"}
+{"time":"2025-05-23T12:47:18.289091354+02:00","level":"INFO","msg":"Starting system monitor"}

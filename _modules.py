@@ -62,26 +62,39 @@ def split_dataset(dataset: Union[Path,str] | List[Dict[str, str]], train: bool):
 class Pipeline(Dataset):
     dataset: Union[Path,str] | List[Dict[str, str]]
     train: bool = True
+    tokenizer = AutoTokenizer.from_pretrained("google/byt5-small")
+    max_length: int = 512
     
     def __post_init__(self):
         pairs = split_dataset(self.dataset, self.train) 
-        tokenizer = AutoTokenizer.from_pretrained("google/byt5-small")
-
-        self.inputs = tokenizer(
-            pairs[0], padding=True, truncation=True, return_tensors="pt"
-        )
-        self.labels = tokenizer(
-            pairs[1], padding=True, truncation=True, return_tensors="pt"
-        ).input_ids
+        self.texts, self.summaries = pairs
 
     def __len__(self):
-        return self.inputs["input_ids"].size(0)
+        return len(self.texts)
 
     def __getitem__(self, idx):
+        t = "Generate summary: \n" + self.texts[idx]
+        s = self.summaries[idx]
+
+        enc = self.tokenizer(
+                t, text_pair=None,
+                padding="max_length",
+                truncation=True,
+                max_length=self.max_length,
+                return_tensors="pt",
+                )
+
+        label_enc = self.tokenizer(
+                s, padding="max_length",
+                truncation=True,
+                max_length=self.max_length,
+                return_tensors="pt",
+                )
+
         return {
-            "input_ids": self.inputs["input_ids"][idx],
-            "attention_mask": self.inputs["attention_mask"][idx],
-            "labels": self.labels[idx]
+            "input_ids": enc.input_ids.squeeze(0),
+            "attention_mask": enc.attention_mask.squeeze(0),
+            "labels": label_enc.input_ids.squeeze(0)
         }
 
  

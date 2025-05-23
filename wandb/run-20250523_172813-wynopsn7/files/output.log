@@ -1,0 +1,2 @@
+  0%|          | 0/30 [00:00<?, ?it/s][rank0]:W0523 17:28:14.752000 2307870 /export/hhome/ainlp22/miniconda3/lib/python3.12/site-packages/torch/_logging/_internal.py:1089] [0/0] Profiler function <class 'torch.autograd.profiler.record_function'> will be ignored
+No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
