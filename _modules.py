@@ -36,8 +36,8 @@ class ByT5ModelOutput(nn.Module):
         return outputs
 
 def process_serialized(data: List[Dict[str, str]], train: bool):
-    texts = [rec["Text"] for rec in data]
-    summaries = [rec["Summary"] for rec in data]
+    texts    = [str(rec.get("Text", ""))    for rec in data]
+    summaries= [str(rec.get("Summary", "")) for rec in data]
     if train:
         train_texts, _, train_summaries, _ = train_test_split(texts, summaries, test_size=0.2, random_state=42)
         pairs = (train_texts, train_summaries) 
