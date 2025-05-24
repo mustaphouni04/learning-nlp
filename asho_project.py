@@ -74,14 +74,45 @@ real_loader = DataLoader(Pipeline(annotated, train=True, test_size=0.1),
                           batch_size = 4, 
                           shuffle=True)
 
-train_loop(real_loader, lr=5e-5, epochs=num_epochs, name="real")
+#train_loop(real_loader, lr=5e-5, epochs=num_epochs, name="real")
 
-model.save_pretrained("saved_models/mt5_real_phase")
-tokenizer.save_pretrained("saved_models/mt5_real_phase")
+#model.save_pretrained("saved_models/mt5_real_phase")
+#tokenizer.save_pretrained("saved_models/mt5_real_phase")
 
 #wrapper.model.save_pretrained("saved_models/mt5_synth_phase", safe_serialization=True)
 #tokenizer.save_pretrained("saved_models/mt5_synth_phase")
 
+dpo_data = []
+for sample in Pipeline(annotated, train=True, test_size=0.1):
+    # prepare single example
+    enc = tokenizer(sample["Text"], return_tensors="pt",
+                    truncation=True, padding="max_length", max_length=1024)
+    in_ids, in_mask = enc.input_ids.to(device), enc.attention_mask.to(device)
+
+    # generate two different summaries
+    outs1 = wrapper.model.generate(**enc, max_length=1024, num_beams=4, top_k=50, do_sample=True)
+    outs2 = wrapper.model.generate(**enc, max_length=1024, num_beams=4, top_k=50, do_sample=True)
+    sum1 = tokenizer.decode(outs1[0], skip_special_tokens=True)
+    sum2 = tokenizer.decode(outs2[0], skip_special_tokens=True)
+
+    print("\n=== SOURCE TEXT ===")
+    print(sample["Text"])
+    print("\n[1]", sum1)
+    print("[2]", sum2)
+    choice = input("Which do you prefer? (1/2): ").strip()
+    if choice not in ("1","2"):
+        print("Skipping example.")
+        continue
+
+    good, bad = (outs1, outs2) if choice=="1" else (outs2, outs1)
+    dpo_data.append({"input_ids":in_ids.cpu(),
+                     "attention_mask": in_mask.cpu(), 
+                     "good": good[0].cpu(), 
+                     "bad": bad[0].cpu()
+                     ))
+torch.save(dpo_data, "dpo_training_data.pt")
+
+"""
 base_model = T5ForConditionalGeneration.from_pretrained("saved_models/mt5_real_phase")
 tokenizer = AutoTokenizer.from_pretrained("saved_models/mt5_real_phase")
 wrapper = ByT5Wrapper(base_model).to(device)
@@ -115,3 +146,4 @@ with torch.no_grad():
 score = bleu(all_preds, all_refs)
 print(f"SacreBLEU score: {score:.4f}")
 wandb.log({"sacrebleu": score})
+"""
