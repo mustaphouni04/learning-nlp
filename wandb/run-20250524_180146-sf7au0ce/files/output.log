@@ -1,0 +1,2 @@
+[synthetic] Epoch 1/3:   0%|          | 0/1062 [00:00<?, ?it/s]Passing a tuple of `past_key_values` is deprecated and will be removed in Transformers v4.48.0. You should pass an instance of `EncoderDecoderCache` instead, e.g. `past_key_values=EncoderDecoderCache.from_legacy_cache(past_key_values)`.
+[synthetic] Epoch 1/3:   1%|          | 12/1062 [05:06<7:20:05, 25.15s/it, loss=4.89]
