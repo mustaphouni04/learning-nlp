@@ -113,14 +113,15 @@ class SynthethicGen:
 datapath = "uab_summary_2024_all.json"
 
 gen = SynthethicGen(datapath)
-api_key = os.environ.get('GEMINI_THIRD_KEY')
+api_key = os.environ.get('GEMINI_SECOND_KEY')
 
-#gen.append_summary_to_json(client_api_key=api_key)
+gen.append_summary_to_json(client_api_key=api_key)
 
+"""
 for i in tqdm(range(500)):
     if i % 10 == 0:
         time.sleep(61)
     gen.append_text_to_json(client_api_key=api_key)
-
+"""
 
 
