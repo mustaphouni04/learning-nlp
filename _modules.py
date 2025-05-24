@@ -35,26 +35,26 @@ class ByT5ModelOutput(nn.Module):
                 attention_mask = attention_mask)
         return outputs
 
-def process_serialized(data: List[Dict[str, str]], train: bool):
+def process_serialized(data: List[Dict[str, str]], train: bool, test_size: float):
     texts    = [str(rec.get("Text", ""))    for rec in data]
     summaries= [str(rec.get("Summary", "")) for rec in data]
     if train:
-        train_texts, _, train_summaries, _ = train_test_split(texts, summaries, test_size=0.2, random_state=42)
+        train_texts, _, train_summaries, _ = train_test_split(texts, summaries, test_size=test_size, random_state=42)
         pairs = (train_texts, train_summaries) 
         return pairs
     else:
-        _, test_texts, _, test_summaries = train_test_split(texts, summaries, test_size=0.2, random_state=42)
+        _, test_texts, _, test_summaries = train_test_split(texts, summaries, test_size=test_size, random_state=42)
         pairs = (test_texts, test_summaries) 
         return pairs
 
-def split_dataset(dataset: Union[Path,str] | List[Dict[str, str]], train: bool):
+def split_dataset(dataset: Union[Path,str] | List[Dict[str, str]], train: bool, test_size: float):
     if isinstance(dataset, str) or isinstance(dataset, Path):
         dataset = str(dataset)
         with open(dataset, "r") as f:
             file = json.load(f)
-            return process_serialized(file, train)
+            return process_serialized(file, train, test_size)
     elif isinstance(dataset, dict):
-        return process_serialized(dataset, train)
+        return process_serialized(dataset, train, test_size)
     else:
         raise TypeError("Invalid dataset type")
 
@@ -62,11 +62,12 @@ def split_dataset(dataset: Union[Path,str] | List[Dict[str, str]], train: bool):
 class Pipeline(Dataset):
     dataset: Union[Path,str] | List[Dict[str, str]]
     train: bool = True
-    tokenizer = AutoTokenizer.from_pretrained("google/byt5-small")
-    max_length: int = 512
+    test_size: float = 0.1
+    tokenizer = AutoTokenizer.from_pretrained("google/mt5-small")
+    max_length: int = 1024
     
     def __post_init__(self):
-        pairs = split_dataset(self.dataset, self.train) 
+        pairs = split_dataset(self.dataset, self.train, self.test_size) 
         self.texts, self.summaries = pairs
 
     def __len__(self):

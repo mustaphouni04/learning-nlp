@@ -1,0 +1,7 @@
+{"time":"2025-05-24T12:51:55.435367264+02:00","level":"INFO","msg":"stream: starting","core version":"0.19.11","symlink path":"/home/melaichouni/Desktop/learning-nlp/wandb/run-20250524_125155-wzrxvw8z/logs/debug-core.log"}
+{"time":"2025-05-24T12:51:55.703259417+02:00","level":"INFO","msg":"created new stream","id":"wzrxvw8z"}
+{"time":"2025-05-24T12:51:55.703335957+02:00","level":"INFO","msg":"stream: started","id":"wzrxvw8z"}
+{"time":"2025-05-24T12:51:55.703367402+02:00","level":"INFO","msg":"handler: started","stream_id":"wzrxvw8z"}
+{"time":"2025-05-24T12:51:55.703404912+02:00","level":"INFO","msg":"sender: started","stream_id":"wzrxvw8z"}
+{"time":"2025-05-24T12:51:55.703475549+02:00","level":"INFO","msg":"writer: Do: started","stream_id":"wzrxvw8z"}
+{"time":"2025-05-24T12:51:55.989039957+02:00","level":"INFO","msg":"Starting system monitor"}

@@ -31,7 +31,9 @@ class SynthethicGen:
             config=types.GenerateContentConfig(
                 system_instruction="""Act like a clinical doctor writing real medical reports.
                           Write a medical text THE SAME SIZE as the text received about a patient with [condition X].
-                          You can think of a different condition.
+                          Generate diverse clinical scenarios and descriptions. 
+                          Avoid simply rephrasing the example; use it as inspiration for a *new* case with a potentially different (but plausible) condition.
+                          Avoid unnatural repetition of phrases in the generated medical text.
                           The text should be detailed, clinical, and should include symptoms, diagnosis, and treatment plan.
                           The generated text should be faithful to the received example, if the example has lowercase words, this
                           should be maintained. The generated text should be in Catalan."""),
@@ -51,9 +53,12 @@ class SynthethicGen:
                         - Reason of why the patient came to the doctor 
                         - Effects seen during the stay and the verdict on the patient's condition
 
-                        The summary has to be in Spanish and should contain the following:
-                        'Paciente que ingresa por...', 'Durante el ingreso...', 'El diagnóstico se orienta a...'
-                        These are examples, you can rephrase them.
+                        The summary has to be in Spanish and should cover the patient's reason for admission, key findings during their stay, and the resulting diagnosis. 
+                        Strive for natural, clinical language. For instance, summaries might start with phrases like 
+                        'Paciente que acude por...' or 'El motivo de ingreso fue...', and discuss findings using varied descriptions, concluding with diagnostic insights such as 
+                        'Se diagnostica un cuadro de...' or 'La orientación diagnóstica es hacia...'. 
+                        Vary your phrasing and structure.
+                        Ensure the summary is concise and avoids unnecessary repetition of words or phrases.
                         Do not use bullet points and be brief but concise, make it around 5 lines long.
                         """),
                 contents=f'Genera un resumen de este texto medico: {text_sample["Text"]}'
@@ -110,14 +115,12 @@ datapath = "uab_summary_2024_all.json"
 gen = SynthethicGen(datapath)
 api_key = os.environ.get('GEMINI_THIRD_KEY')
 
-gen.append_summary_to_json(client_api_key=api_key)
+#gen.append_summary_to_json(client_api_key=api_key)
 
-"""
 for i in tqdm(range(500)):
     if i % 10 == 0:
         time.sleep(61)
     gen.append_text_to_json(client_api_key=api_key)
-"""
 
 
 

@@ -1,0 +1,7 @@
+/home/melaichouni/Desktop/learning-nlp/asho_project.py:49: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  scaler = GradScaler()
+Epoching:   0%|          | 0/5 [00:00<?/home/melaichouni/Desktop/learning-nlp/asho_project.py:57: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with autocast():/944 [00:00<?, ?it/s]
+Passing a tuple of `past_key_values` is deprecated and will be removed in Transformers v4.48.0. You should pass an instance of `EncoderDecoderCache` instead, e.g. `past_key_values=EncoderDecoderCache.from_legacy_cache(past_key_values)`.
+
+  7%|▋         | 66/944 [00:19<04:13,  3.47it/s]

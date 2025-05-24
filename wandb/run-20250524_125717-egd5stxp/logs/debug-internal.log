@@ -1,0 +1,7 @@
+{"time":"2025-05-24T12:57:17.300226887+02:00","level":"INFO","msg":"stream: starting","core version":"0.19.11","symlink path":"/home/melaichouni/Desktop/learning-nlp/wandb/run-20250524_125717-egd5stxp/logs/debug-core.log"}
+{"time":"2025-05-24T12:57:17.599425833+02:00","level":"INFO","msg":"created new stream","id":"egd5stxp"}
+{"time":"2025-05-24T12:57:17.599475975+02:00","level":"INFO","msg":"stream: started","id":"egd5stxp"}
+{"time":"2025-05-24T12:57:17.599549158+02:00","level":"INFO","msg":"writer: Do: started","stream_id":"egd5stxp"}
+{"time":"2025-05-24T12:57:17.599602739+02:00","level":"INFO","msg":"handler: started","stream_id":"egd5stxp"}
+{"time":"2025-05-24T12:57:17.599550902+02:00","level":"INFO","msg":"sender: started","stream_id":"egd5stxp"}
+{"time":"2025-05-24T12:57:17.839791202+02:00","level":"INFO","msg":"Starting system monitor"}

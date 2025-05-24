@@ -1,0 +1,20 @@
+/home/melaichouni/Desktop/learning-nlp/asho_project.py:49: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  scaler = GradScaler()
+Epoching:   0%|                                                                                                                                                                                                                                                                                 | 0/5 [00:00<?, ?it/s]/home/melaichouni/Desktop/learning-nlp/asho_project.py:58: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with autocast():                                                                                                                                                                                                                                                                            | 0/944 [00:00<?, ?it/s]
+Passing a tuple of `past_key_values` is deprecated and will be removed in Transformers v4.48.0. You should pass an instance of `EncoderDecoderCache` instead, e.g. `past_key_values=EncoderDecoderCache.from_legacy_cache(past_key_values)`.
+NaN loss at step 0, skipping log.
+  0%|▎                                                                                                                                                                                                                                                                                | 1/944 [00:01<18:40,  1.19s/it]
+Epoching:   0%|                                                                                                                                                                                                                                                                                 | 0/5 [00:01<?, ?it/s]
+Traceback (most recent call last):
+  File "/home/melaichouni/Desktop/learning-nlp/asho_project.py", line 65, in <module>
+    scaler.unscale_(optimizer)
+  File "/home/melaichouni/.virtualenvs/dev/lib/python3.10/site-packages/torch/amp/grad_scaler.py", line 331, in unscale_
+    raise RuntimeError(
+RuntimeError: unscale_() has already been called on this optimizer since the last update().
+Traceback (most recent call last):
+  File "/home/melaichouni/Desktop/learning-nlp/asho_project.py", line 65, in <module>
+    scaler.unscale_(optimizer)
+  File "/home/melaichouni/.virtualenvs/dev/lib/python3.10/site-packages/torch/amp/grad_scaler.py", line 331, in unscale_
+    raise RuntimeError(
+RuntimeError: unscale_() has already been called on this optimizer since the last update().
