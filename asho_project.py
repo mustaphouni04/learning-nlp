@@ -3,6 +3,7 @@ from tqdm import tqdm
 import torch
 from torch import nn
 import wandb
+import json
 from torch.optim import AdamW
 from torchmetrics.text import SacreBLEUScore
 from torch.utils.data import DataLoader
@@ -40,7 +41,7 @@ wrapper = ByT5Wrapper(model).to(device)
 
 optimizer = AdamW(wrapper.model.parameters())
 
-num_epochs = 1
+num_epochs = 4
 
 def train_loop(loader, lr:float, epochs:int, name:str):
     optimizer = AdamW(wrapper.model.parameters(), lr=lr)
@@ -61,13 +62,28 @@ def train_loop(loader, lr:float, epochs:int, name:str):
             wandb.log({f"{name}_loss": loss.item()}, step=epoch*len(loader)+step)
             pbar.set_postfix(loss=loss.item())
 
-train_loop(train_loader, lr = 1e-3, epochs=num_epochs, name="synthetic")
-    
-wrapper.model.save_pretrained("saved_models/mt5_synth_phase", safe_serialization=True)
-tokenizer.save_pretrained("saved_models/mt5_synth_phase")
+#train_loop(train_loader, lr = 1e-3, epochs=num_epochs, name="synthetic")
+   
+with open("uab_summary_2024_all.json", "r") as f:
+    real_data = json.load(f)
 
-base_model = T5ForConditionalGeneration.from_pretrained("saved_models/mt5_synth_phase")
-tokenizer = AutoTokenizer.from_pretrained("saved_models/mt5_synth_phase")
+annotated = [real for real in real_data if real["Summary"] != ""]
+print(f"There are {len(annotated)} annotated samples")
+
+real_loader = DataLoader(Pipeline(annotated, train=True, test_size=0.1), 
+                          batch_size = 4, 
+                          shuffle=True)
+
+train_loop(real_loader, lr=5e-5, epochs=num_epochs, name="real")
+
+model.save_pretrained("saved_models/mt5_real_phase")
+tokenizer.save_pretrained("saved_models/mt5_real_phase")
+
+#wrapper.model.save_pretrained("saved_models/mt5_synth_phase", safe_serialization=True)
+#tokenizer.save_pretrained("saved_models/mt5_synth_phase")
+
+base_model = T5ForConditionalGeneration.from_pretrained("saved_models/mt5_real_phase")
+tokenizer = AutoTokenizer.from_pretrained("saved_models/mt5_real_phase")
 wrapper = ByT5Wrapper(base_model).to(device)
 wrapper.eval()
 bleu = SacreBLEUScore()

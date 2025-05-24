@@ -1,0 +1,15 @@
+{"time":"2025-05-24T23:00:13.413430834+02:00","level":"INFO","msg":"stream: starting","core version":"0.19.11","symlink path":"/export/hhome/ainlp22/learning-nlp/wandb/run-20250524_230013-d256crvs/logs/debug-core.log"}
+{"time":"2025-05-24T23:00:13.687945661+02:00","level":"INFO","msg":"created new stream","id":"d256crvs"}
+{"time":"2025-05-24T23:00:13.68798456+02:00","level":"INFO","msg":"stream: started","id":"d256crvs"}
+{"time":"2025-05-24T23:00:13.688037227+02:00","level":"INFO","msg":"sender: started","stream_id":"d256crvs"}
+{"time":"2025-05-24T23:00:13.688087645+02:00","level":"INFO","msg":"handler: started","stream_id":"d256crvs"}
+{"time":"2025-05-24T23:00:13.688132254+02:00","level":"INFO","msg":"writer: Do: started","stream_id":"d256crvs"}
+{"time":"2025-05-24T23:00:13.915407445+02:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-05-24T23:07:35.019511897+02:00","level":"INFO","msg":"stream: closing","id":"d256crvs"}
+{"time":"2025-05-24T23:07:35.019572314+02:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-05-24T23:07:35.019639861+02:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-05-24T23:07:35.764083188+02:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-05-24T23:07:35.966358252+02:00","level":"INFO","msg":"handler: closed","stream_id":"d256crvs"}
+{"time":"2025-05-24T23:07:35.96640949+02:00","level":"INFO","msg":"writer: Close: closed","stream_id":"d256crvs"}
+{"time":"2025-05-24T23:07:35.966431289+02:00","level":"INFO","msg":"sender: closed","stream_id":"d256crvs"}
+{"time":"2025-05-24T23:07:35.966542334+02:00","level":"INFO","msg":"stream: closed","id":"d256crvs"}

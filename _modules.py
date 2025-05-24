@@ -53,7 +53,7 @@ def split_dataset(dataset: Union[Path,str] | List[Dict[str, str]], train: bool, 
         with open(dataset, "r") as f:
             file = json.load(f)
             return process_serialized(file, train, test_size)
-    elif isinstance(dataset, dict):
+    elif isinstance(dataset, list):
         return process_serialized(dataset, train, test_size)
     else:
         raise TypeError("Invalid dataset type")
