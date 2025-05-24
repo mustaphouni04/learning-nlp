@@ -13,3 +13,4 @@ alice.txt
 error.err
 hello.out
 .env
+saved_models/

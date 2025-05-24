@@ -21,7 +21,7 @@ train_pipe = Pipeline("output.json", train=True)
 train_loader = DataLoader(train_pipe, batch_size = 32, shuffle=True)
 
 test_pipe = Pipeline("output.json", train=False)
-test_loader = DataLoader(test_pipe, batch_size = 32, shuffle=False)
+test_loader = DataLoader(test_pipe, batch_size = 1, shuffle=False)
 
 #decoded_text = tokenizer.decode(model_inputs["input_ids"][0], skip_special_tokens=True) # shape is (1, seq_len) so take first elem
 
@@ -34,7 +34,7 @@ wrapper = ByT5Wrapper(model).to(device)
 #print(output)
 
 optimizer = AdamW(wrapper.model.parameters())
-
+"""
 wandb.init(
       project="byt5-finetuning",
       name=f"experiment")
@@ -50,6 +50,7 @@ for batch in tqdm(train_loader):
 
     loss.backward()
     optimizer.step()
+"""
 
 wrapper.model.save_pretrained("saved_models/byt5_finetuned", safe_serialization=True)
 tokenizer.save_pretrained("saved_models/byt5_finetuned")
@@ -76,12 +77,14 @@ with torch.no_grad():
                 num_beams=4)
 
         decoded_preds = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
+        print("Predicted: ", decoded_preds[0])
         decoded_refs = tokenizer.batch_decode(labels, skip_special_tokens=True)
+        print("Reference: ", decoded_refs[0])
 
         all_preds.extend(decoded_preds)
         all_refs.extend([[ref] for ref in decoded_refs])
 
 score = bleu(all_preds, all_refs)
 print(f"SacreBLEU score: {score:.4f}")
-wandb.log({"sacrebleu": score})
+#wandb.log({"sacrebleu": score})
 
