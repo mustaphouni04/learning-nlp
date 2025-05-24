@@ -1,0 +1,15 @@
+{"time":"2025-05-24T18:08:56.502847856+02:00","level":"INFO","msg":"stream: starting","core version":"0.19.11","symlink path":"/export/hhome/ainlp22/learning-nlp/wandb/run-20250524_180856-bvt593tn/logs/debug-core.log"}
+{"time":"2025-05-24T18:08:56.781417869+02:00","level":"INFO","msg":"created new stream","id":"bvt593tn"}
+{"time":"2025-05-24T18:08:56.781496101+02:00","level":"INFO","msg":"stream: started","id":"bvt593tn"}
+{"time":"2025-05-24T18:08:56.781644045+02:00","level":"INFO","msg":"handler: started","stream_id":"bvt593tn"}
+{"time":"2025-05-24T18:08:56.781739905+02:00","level":"INFO","msg":"sender: started","stream_id":"bvt593tn"}
+{"time":"2025-05-24T18:08:56.781795289+02:00","level":"INFO","msg":"writer: Do: started","stream_id":"bvt593tn"}
+{"time":"2025-05-24T18:08:57.087686686+02:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-05-24T18:29:08.282014831+02:00","level":"INFO","msg":"stream: closing","id":"bvt593tn"}
+{"time":"2025-05-24T18:29:08.282079306+02:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-05-24T18:29:08.282121514+02:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-05-24T18:29:09.005146405+02:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-05-24T18:29:09.198747463+02:00","level":"INFO","msg":"handler: closed","stream_id":"bvt593tn"}
+{"time":"2025-05-24T18:29:09.19879097+02:00","level":"INFO","msg":"writer: Close: closed","stream_id":"bvt593tn"}
+{"time":"2025-05-24T18:29:09.198804709+02:00","level":"INFO","msg":"sender: closed","stream_id":"bvt593tn"}
+{"time":"2025-05-24T18:29:09.1989351+02:00","level":"INFO","msg":"stream: closed","id":"bvt593tn"}

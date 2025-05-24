@@ -19,11 +19,17 @@ wandb.login(key=api_key)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(device)
 
-model = T5ForConditionalGeneration.from_pretrained("google/mt5-base")
-tokenizer = AutoTokenizer.from_pretrained("google/mt5-base")
+if os.path.exists("saved_models/mt5_synth_phase"):
+    model = T5ForConditionalGeneration.from_pretrained("saved_models/mt5_synth_phase")
+    tokenizer = AutoTokenizer.from_pretrained("saved_models/mt5_synth_phase")
+    print("Loading from saved checkpoint!")
+else:
+    model = T5ForConditionalGeneration.from_pretrained("google/mt5-base")
+    tokenizer = AutoTokenizer.from_pretrained("google/mt5-base")
+    print("Loading base model!")
 
 train_loader = DataLoader(Pipeline("output.json", train=True), 
-                          batch_size = 1, 
+                          batch_size = 4, 
                           shuffle=True)
 
 test_loader = DataLoader(Pipeline("output.json", train=False), 
@@ -34,7 +40,7 @@ wrapper = ByT5Wrapper(model).to(device)
 
 optimizer = AdamW(wrapper.model.parameters())
 
-num_epochs = 3
+num_epochs = 1
 
 def train_loop(loader, lr:float, epochs:int, name:str):
     optimizer = AdamW(wrapper.model.parameters(), lr=lr)
@@ -78,7 +84,9 @@ with torch.no_grad():
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 max_length=256,
-                num_beams=4)
+                num_beams=4,
+                repetition_penalty=1.1,
+                no_repeat_ngram_size=2)
 
         decoded_preds = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
         print("Predicted: ", decoded_preds[0])
