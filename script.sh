@@ -4,7 +4,7 @@
 #SBATCH -D /hhome/ainlp22/learning-nlp/
 #SBATCH -t 0-05:00                 # Runtime in D-HH:MM
 #SBATCH -p dcca40                  # Partition
-#SBATCH --mem 35096                # Memory in MB
+#SBATCH --mem 40096                # Memory in MB
 #SBATCH --gres gpu:1               # 1 GPU
 #SBATCH -o /hhome/ainlp22/learning-nlp/hello.out
 #SBATCH -e /hhome/ainlp22/learning-nlp/error.err

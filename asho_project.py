@@ -41,7 +41,7 @@ wrapper = ByT5Wrapper(model).to(device)
 
 optimizer = AdamW(wrapper.model.parameters())
 
-num_epochs = 4
+num_epochs = 20
 
 def train_loop(loader, lr:float, epochs:int, name:str):
     optimizer = AdamW(wrapper.model.parameters(), lr=lr)
@@ -64,6 +64,9 @@ def train_loop(loader, lr:float, epochs:int, name:str):
 
 #train_loop(train_loader, lr = 1e-3, epochs=num_epochs, name="synthetic")
    
+#wrapper.model.save_pretrained("saved_models/mt5_synth_phase", safe_serialization=True)
+#tokenizer.save_pretrained("saved_models/mt5_synth_phase")
+
 with open("uab_summary_2024_all.json", "r") as f:
     real_data = json.load(f)
 
@@ -74,14 +77,12 @@ real_loader = DataLoader(Pipeline(annotated, train=True, test_size=0.1),
                           batch_size = 4, 
                           shuffle=True)
 
-#train_loop(real_loader, lr=5e-5, epochs=num_epochs, name="real")
+train_loop(real_loader, lr=4e-5, epochs=num_epochs, name="real")
 
-#model.save_pretrained("saved_models/mt5_real_phase")
-#tokenizer.save_pretrained("saved_models/mt5_real_phase")
+model.save_pretrained("saved_models/mt5_real_phase")
+tokenizer.save_pretrained("saved_models/mt5_real_phase")
 
-#wrapper.model.save_pretrained("saved_models/mt5_synth_phase", safe_serialization=True)
-#tokenizer.save_pretrained("saved_models/mt5_synth_phase")
-
+"""
 dpo_data = []
 for sample in Pipeline(annotated, train=True, test_size=0.1):
     # prepare single example
@@ -111,8 +112,8 @@ for sample in Pipeline(annotated, train=True, test_size=0.1):
                      "bad": bad[0].cpu()
                      ))
 torch.save(dpo_data, "dpo_training_data.pt")
-
 """
+
 base_model = T5ForConditionalGeneration.from_pretrained("saved_models/mt5_real_phase")
 tokenizer = AutoTokenizer.from_pretrained("saved_models/mt5_real_phase")
 wrapper = ByT5Wrapper(base_model).to(device)
@@ -146,4 +147,3 @@ with torch.no_grad():
 score = bleu(all_preds, all_refs)
 print(f"SacreBLEU score: {score:.4f}")
 wandb.log({"sacrebleu": score})
-"""

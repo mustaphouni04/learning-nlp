@@ -1,0 +1,7 @@
+{"time":"2025-05-26T16:36:28.064416057+02:00","level":"INFO","msg":"stream: starting","core version":"0.19.11","symlink path":"/export/hhome/ainlp22/learning-nlp/wandb/run-20250526_163628-iw1egda9/logs/debug-core.log"}
+{"time":"2025-05-26T16:36:28.343588267+02:00","level":"INFO","msg":"created new stream","id":"iw1egda9"}
+{"time":"2025-05-26T16:36:28.34364644+02:00","level":"INFO","msg":"stream: started","id":"iw1egda9"}
+{"time":"2025-05-26T16:36:28.344672601+02:00","level":"INFO","msg":"writer: Do: started","stream_id":"iw1egda9"}
+{"time":"2025-05-26T16:36:28.345067102+02:00","level":"INFO","msg":"handler: started","stream_id":"iw1egda9"}
+{"time":"2025-05-26T16:36:28.345107816+02:00","level":"INFO","msg":"sender: started","stream_id":"iw1egda9"}
+{"time":"2025-05-26T16:36:28.591885405+02:00","level":"INFO","msg":"Starting system monitor"}

@@ -1,0 +1,5 @@
+2025-05-26 17:01:51,386 INFO    MainThread:3417422 [wandb_init.py:setup_run_log_directory():724] Logging user logs to /export/hhome/ainlp22/learning-nlp/wandb/run-20250526_170151-hi0zrnuc/logs/debug.log
+2025-05-26 17:01:51,386 INFO    MainThread:3417422 [wandb_init.py:setup_run_log_directory():725] Logging internal logs to /export/hhome/ainlp22/learning-nlp/wandb/run-20250526_170151-hi0zrnuc/logs/debug-internal.log
+2025-05-26 17:01:51,386 INFO    MainThread:3417422 [wandb_init.py:init():852] calling init triggers
+2025-05-26 17:01:51,386 INFO    MainThread:3417422 [wandb_init.py:init():857] wandb.init called with sweep_config: {}
+config: {'_wandb': {}}
